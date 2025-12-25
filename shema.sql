@@ -1,50 +1,62 @@
--- Создание таблицы для пользователей (для аутентификации)
-CREATE TABLE IF NOT EXISTS users (
+-- ================= USERS =================
+CREATE TABLE users (
     id SERIAL PRIMARY KEY,
-    username VARCHAR(50) UNIQUE NOT NULL,
-    -- password_hash должен быть достаточно длинным для хранения результата bcrypt (60 символов)
-    password_hash VARCHAR(100) NOT NULL, 
-    email VARCHAR(100) UNIQUE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    username TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL
 );
 
--- Создание таблицы для исполнителей
-CREATE TABLE IF NOT EXISTS artists (
+-- ================= ARTISTS =================
+CREATE TABLE artists (
     id SERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    -- Указываем, что исполнитель создан конкретным пользователем
-    user_id INT REFERENCES users(id) ON DELETE SET NULL, 
-    is_public BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    name TEXT NOT NULL,
+    is_deleted BOOLEAN DEFAULT false
 );
 
--- Создание таблицы для альбомов
-CREATE TABLE IF NOT EXISTS albums (
+CREATE UNIQUE INDEX artists_name_unique
+ON artists (name)
+WHERE is_deleted = false;
+
+-- ================= ALBUMS =================
+CREATE TABLE albums (
     id SERIAL PRIMARY KEY,
-    title VARCHAR(255) NOT NULL,
-    artist_id INT NOT NULL REFERENCES artists(id) ON DELETE CASCADE,
-    release_year INT,
-    -- Добавим уникальность пары (title, artist_id), чтобы избежать дублирования альбомов у одного исполнителя
-    UNIQUE (title, artist_id), 
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    title TEXT NOT NULL,
+    year INTEGER,
+    artist_id INTEGER NOT NULL REFERENCES artists(id) ON DELETE CASCADE,
+    is_deleted BOOLEAN DEFAULT false
 );
 
--- Создание таблицы для треков
-CREATE TABLE IF NOT EXISTS tracks (
+CREATE UNIQUE INDEX albums_artist_title_unique
+ON albums (artist_id, title)
+WHERE is_deleted = false;
+
+-- ================= TRACKS =================
+CREATE TABLE tracks (
     id SERIAL PRIMARY KEY,
-    title VARCHAR(255) NOT NULL,
-    album_id INT NOT NULL REFERENCES albums(id) ON DELETE CASCADE,
-    duration INT NOT NULL, -- Длительность в секундах
-    track_number INT,
-    -- Добавим уникальность пары (album_id, track_number) для порядка треков в альбоме
-    UNIQUE (album_id, track_number),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    title TEXT NOT NULL,
+    album_id INTEGER NOT NULL REFERENCES albums(id) ON DELETE CASCADE,
+    duration INTEGER,
+    is_deleted BOOLEAN DEFAULT false
 );
 
--- Индексы для ускорения поиска
-CREATE INDEX IF NOT EXISTS idx_tracks_album_id ON tracks(album_id);
-CREATE INDEX IF NOT EXISTS idx_albums_artist_id ON albums(artist_id);
-CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
+CREATE UNIQUE INDEX tracks_album_title_unique
+ON tracks (album_id, title)
+WHERE is_deleted = false;
 
--- Уведомление об успешном завершении
-SELECT 'Все таблицы успешно созданы или уже существуют.' AS status;
+-- ================= PLAYLISTS =================
+CREATE TABLE playlists (
+    id SERIAL PRIMARY KEY,
+    title TEXT NOT NULL,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    is_deleted BOOLEAN DEFAULT false
+);
+
+CREATE UNIQUE INDEX playlists_user_title_unique
+ON playlists (user_id, title)
+WHERE is_deleted = false;
+
+-- ================= PLAYLIST_TRACKS =================
+CREATE TABLE playlist_tracks (
+    playlist_id INTEGER REFERENCES playlists(id) ON DELETE CASCADE,
+    track_id INTEGER REFERENCES tracks(id) ON DELETE CASCADE,
+    PRIMARY KEY (playlist_id, track_id)
+);
