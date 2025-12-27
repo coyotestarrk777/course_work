@@ -1,0 +1,37 @@
+
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: music_manager_db
+    restart: always
+    environment:
+      - POSTGRES_USER=music_lover
+      - POSTGRES_PASSWORD=music
+      - POSTGRES_DB=mymusic_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./shema.sql:/docker-entrypoint-initdb.d/init.sql
+      - postgres_data:/var/lib/postgresql/data
+
+  app:
+    build: 
+      context: ./music-manager
+      dockerfile: Dockerfile
+    container_name: music_app
+    depends_on:
+      - db
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USER=music_lover
+      - DB_PASSWORD=music
+      - DB_NAME=mymusic_db
+      - DISPLAY=${DISPLAY} # Нужно для вывода графики на Linux
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix # Нужно для вывода графики на Linux
+    network_mode: "bridge"
+
+volumes:
+  postgres_data:
